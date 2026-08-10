@@ -5,19 +5,16 @@ public with sharing class ApexExecutorController {
         String baseUrl = System.URL.getOrgDomainUrl().toExternalForm();
         String endpoint = baseUrl + '/services/data/v60.0/tooling/executeAnonymous/?anonymousBody=' + EncodingUtil.urlEncode(apexCode, 'UTF-8');
         
-        HttpRequest req = new HttpRequest();
-        req.setEndpoint(endpoint);
-        req.setMethod('GET');
-        req.setHeader('Authorization', 'Bearer ' + UserInfo.getSessionId());
-        req.setHeader('Content-Type', 'application/json');
+        P2P_HttpRequestWrapper w = P2P_HttpRequestWrapper.forGet(endpoint);
+        w.withHeader('Authorization', 'Bearer ' + UserInfo.getSessionId());
+        w.withHeader('Content-Type', 'application/json');
+        P2P_HttpResponseWrapper res = P2P_CalloutService.execute(w);
+        if (!Test.isRunningTest()) { try { IntegrationMessageService.flushBuffer(); } catch(Exception e) {} }
         
-        Http http = new Http();
-        HTTPResponse res = http.send(req);
-        
-        if (res.getStatusCode() == 200) {
-            return res.getBody();
+        if (res.statusCode == 200) {
+            return res.body;
         } else {
-            throw new AuraHandledException('Execution Error: ' + res.getBody());
+            throw new AuraHandledException('Execution Error: ' + res.body);
         }
     }
 }

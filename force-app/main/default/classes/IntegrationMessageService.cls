@@ -35,8 +35,7 @@ public with sharing class IntegrationMessageService {
 
     /**
      * Persist message. Buffered to avoid "uncommitted work pending" when multiple callouts
-     * run in same transaction (BestStories tiles loop = 1 + N callouts). Never does immediate DML.
-     * Caller must invoke flushBuffer() after burst, or the record remains buffered until next flush / end of txn.
+     * run in same transaction (BestStories tiles loop = 1 + N callouts). Caller must invoke flushBuffer()/flushBufferAsync() after burst, or use auto via P2P_CalloutService.
      * Swallows exceptions to never break callout flow.
      */
     public static Id logMessage(P2P_HttpRequestWrapper reqW, P2P_HttpResponseWrapper resW, String integrationName, String operation, String referenceId) {
@@ -63,7 +62,27 @@ public with sharing class IntegrationMessageService {
             return toInsert.size();
         } catch(Exception e) {
             System.debug(LoggingLevel.ERROR, 'IntegrationMessageService flush failed: ' + e.getMessage());
+            // If flush failed due to uncommitted work pending, keep buffered for async retry
+            if (e.getMessage() != null && e.getMessage().contains('uncommitted work pending')) {
+                pendingBuffer.addAll(toInsert);
+            }
             return 0;
+        }
+    }
+
+    /**
+     * Async flush: enqueues a Queueable to insert buffered messages in a separate transaction.
+     * Safe to call after all callouts; avoids extra DML if caller already did sync flush.
+     */
+    public static void flushBufferAsync() {
+        if (pendingBuffer.isEmpty()) return;
+        List<Integration_Message__c> toInsert = new List<Integration_Message__c>(pendingBuffer);
+        pendingBuffer.clear();
+        try {
+            System.enqueueJob(new IntegrationMessageFlushQueueable(toInsert));
+        } catch(Exception e) {
+            System.debug(LoggingLevel.WARN, 'flushBufferAsync enqueue failed: ' + e.getMessage() + ' falling back to sync');
+            try { insert toInsert; } catch(Exception ie) { System.debug(LoggingLevel.ERROR, 'Fallback insert failed: '+ie.getMessage()); }
         }
     }
 

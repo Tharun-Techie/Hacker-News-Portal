@@ -7,6 +7,7 @@
     <types>
         <members>IntegrationMessageService</members>
         <members>IntegrationMessageServiceTest</members>
+        <members>IntegrationMessageFlushQueueable</members>
         <members>BestStoriesController</members>
         <members>TopStoriesController</members>
         <members>P2P_CalloutService</members>
@@ -17,6 +18,11 @@
         <members>ResponseWrapper</members>
         <members>Global_Constants</members>
         <members>GeneralMethods</members>
+        <members>CatFactController</members>
+        <members>HN_SimpleProgram</members>
+        <members>ApexExecutorController</members>
+        <members>LimitsService</members>
+        <members>LogDowloader</members>
         <members>BestStoriesControllerTest</members>
         <members>TopStoriesControllerTest</members>
         <members>P2P_CalloutServiceTest</members>

@@ -28,6 +28,7 @@ public with sharing class TopStoriesController {
         }
 
         if (allIds == null || allIds.isEmpty() || off >= allIds.size()) {
+            if (!Test.isRunningTest()) { try { IntegrationMessageService.flushBuffer(); } catch(Exception ex) {} }
             return new List<StoryTile>();
         }
 
@@ -68,7 +69,7 @@ public with sharing class TopStoriesController {
                 System.debug(LoggingLevel.WARN, 'TopStories tile fetch failed for id ' + id + ': ' + e.getMessage());
             }
         }
-        // Buffered persistence - see BestStoriesController
+        if (!Test.isRunningTest()) { try { IntegrationMessageService.flushBuffer(); } catch(Exception e) { System.debug(LoggingLevel.WARN,'TopStories flush failed: '+e.getMessage()); } }
         return tiles;
     }
 
@@ -76,8 +77,10 @@ public with sharing class TopStoriesController {
     public static Integer getTopStoriesCount() {
         try {
             List<String> ids = P2P_CalloutService.getHNTopStoryIds(false);
+            if (!Test.isRunningTest()) { try { IntegrationMessageService.flushBuffer(); } catch(Exception ex) {} }
             return ids != null ? ids.size() : 0;
         } catch (Exception e) {
+            if (!Test.isRunningTest()) { try { IntegrationMessageService.flushBuffer(); } catch(Exception ex) {} }
             throw new AuraHandledException('Failed to get count: ' + e.getMessage());
         }
     }
@@ -85,7 +88,9 @@ public with sharing class TopStoriesController {
     @AuraEnabled(cacheable=false)
     public static ResponseWrapper getStoryById(String itemId) {
         if (String.isBlank(itemId)) throw new AuraHandledException('itemId required');
-        return P2P_CalloutService.getHNItemAsWrapper(itemId, false);
+        ResponseWrapper rw = P2P_CalloutService.getHNItemAsWrapper(itemId, false);
+        if (!Test.isRunningTest()) { try { IntegrationMessageService.flushBuffer(); } catch(Exception e) {} }
+        return rw;
     }
 
     @AuraEnabled(cacheable=false)
