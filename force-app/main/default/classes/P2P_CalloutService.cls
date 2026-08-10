@@ -13,6 +13,8 @@ public with sharing class P2P_CalloutService {
             HttpResponse res = http.send(req);
             P2P_HttpResponseWrapper wrap = P2P_ResponseProcessor.process(res);
             logCallout(req, wrap);
+            // Persist Integration_Message (buffered to allow multiple callouts in one txn)
+            try { IntegrationMessageService.log(reqWrapper, wrap); } catch(Exception ie) { System.debug(LoggingLevel.WARN, 'IM log failed: '+ie.getMessage()); }
             return wrap;
         } catch (CalloutException ce) {
             System.debug(LoggingLevel.ERROR, 'P2P CalloutException: ' + ce.getMessage());
@@ -21,17 +23,22 @@ public with sharing class P2P_CalloutService {
             err.statusCode = 0;
             err.status = 'CalloutException';
             err.errorMessage = ce.getMessage();
-            // Optional: LogUtility integration
-            // System.debug(LogUtility.getCurrentClassName(ce));
+            try { IntegrationMessageService.log(reqWrapper, err); } catch(Exception ie) {}
             return err;
         } catch (Exception e) {
             System.debug(LoggingLevel.ERROR, 'P2P Unexpected: ' + e.getMessage() + ' ' + e.getStackTraceString());
             P2P_HttpResponseWrapper err = new P2P_HttpResponseWrapper();
             err.isSuccess = false;
             err.errorMessage = e.getMessage();
+            try { IntegrationMessageService.log(reqWrapper, err); } catch(Exception ie) {}
             return err;
         }
     }
+
+    /**
+     * Flush any buffered Integration_Message records. Call after burst of callouts.
+     */
+    public static Integer flushIntegrationMessages() { return IntegrationMessageService.flushBuffer(); }
 
     /**
      * Execute and throw if not success. Convenient for synchronous LWC Apex where AuraHandledException is expected.
@@ -108,6 +115,48 @@ public with sharing class P2P_CalloutService {
         P2P_HttpRequestWrapper w = P2P_HttpRequestWrapper.forGet(path);
         w.withNamedCredential(namedCredential);
         return execute(w);
+    }
+
+    // ---- Fetch from Integration_Message (no callout) ----
+    // Purpose: after each API hit we persist Integration_Message__c; consumers should fetch from that record.
+
+    public static ResponseWrapper getHNItemFromStore(String itemId) {
+        ResponseWrapper rw = IntegrationMessageService.getHNItemFromStore(itemId);
+        if (rw == null) throw new AuraHandledException('No stored Integration_Message for item ' + itemId);
+        return rw;
+    }
+
+    public static List<String> getHNBestStoryIdsFromStore() {
+        List<String> ids = IntegrationMessageService.getHNStoryIdsFromStore('getHNBestStoryIds');
+        if (ids.isEmpty()) throw new AuraHandledException('No stored Integration_Message for getHNBestStoryIds');
+        return ids;
+    }
+
+    public static List<String> getHNTopStoryIdsFromStore() {
+        List<String> ids = IntegrationMessageService.getHNStoryIdsFromStore('getHNTopStoryIds');
+        if (ids.isEmpty()) throw new AuraHandledException('No stored Integration_Message for getHNTopStoryIds');
+        return ids;
+    }
+
+    public static List<String> getHNNewStoryIdsFromStore() {
+        List<String> ids = IntegrationMessageService.getHNStoryIdsFromStore('getHNNewStoryIds');
+        if (ids.isEmpty()) throw new AuraHandledException('No stored Integration_Message for getHNNewStoryIds');
+        return ids;
+    }
+
+    /**
+     * Cached variant: tries store first, falls back to live callout and then the new response is stored.
+     */
+    public static ResponseWrapper getHNItemWithCache(String itemId, Boolean useNC) {
+        ResponseWrapper cached = IntegrationMessageService.getHNItemFromStore(itemId);
+        if (cached != null) return cached;
+        return getHNItemAsWrapper(itemId, useNC);
+    }
+
+    public static List<String> getHNBestStoryIdsWithCache(Boolean useNC) {
+        List<String> cached = IntegrationMessageService.getHNStoryIdsFromStore('getHNBestStoryIds');
+        if (!cached.isEmpty()) return cached;
+        return getHNBestStoryIds(useNC);
     }
 
     private static void logCallout(HttpRequest req, P2P_HttpResponseWrapper res) {
