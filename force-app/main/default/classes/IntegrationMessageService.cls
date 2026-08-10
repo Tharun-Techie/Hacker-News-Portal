@@ -5,30 +5,53 @@ public with sharing class IntegrationMessageService {
      */
     public static Integration_Message__c buildMessage(P2P_HttpRequestWrapper reqW, P2P_HttpResponseWrapper resW, String integrationName, String operation, String referenceId) {
         Integration_Message__c msg = new Integration_Message__c();
-        // Request minimum fields
+        // Request minimum fields - ensure every hit stamps request data
         if (reqW != null) {
+            // Resolve final endpoint like P2P_RequestProcessor does (named cred + query params)
             String ep = reqW.endpoint;
+            if (String.isNotBlank(reqW.namedCredential)) {
+                String nc = reqW.namedCredential.trim();
+                if (nc.toLowerCase().startsWith('callout:')) nc = nc.substringAfter(':');
+                String path = ep != null ? ep : '';
+                if (!path.startsWith('/')) path = '/' + path;
+                ep = 'callout:' + nc + path;
+            }
+            // Append queryParams for audit if any
+            if (reqW.queryParams != null && !reqW.queryParams.isEmpty()) {
+                List<String> parts = new List<String>();
+                for (String k : reqW.queryParams.keySet()) {
+                    parts.add(k + '=' + reqW.queryParams.get(k));
+                }
+                String qs = String.join(parts, '&');
+                ep = ep + (ep.contains('?') ? '&' : '?') + qs;
+            }
             if (String.isNotBlank(ep) && ep.length() > 255) ep = ep.substring(0,255);
             msg.Endpoint__c = ep;
             String m = reqW.method;
             if (String.isNotBlank(m) && m.length() > 20) m = m.substring(0,20);
-            msg.Http_Method__c = m;
+            msg.Http_Method__c = String.isNotBlank(m) ? m : 'GET';
             String reqBody = reqW.body;
             if (String.isNotBlank(reqBody) && reqBody.length() > 131072) reqBody = reqBody.substring(0,131072);
             msg.Request_Body__c = reqBody;
             String nc = reqW.namedCredential;
             if (String.isNotBlank(nc) && nc.length() > 100) nc = nc.substring(0,100);
             msg.Named_Credential__c = nc;
-            if (reqW.headers != null && !reqW.headers.isEmpty()) {
-                try {
-                    String hdr = JSON.serialize(reqW.headers);
-                    if (hdr.length() > 32768) hdr = hdr.substring(0,32768);
-                    msg.Request_Headers__c = hdr;
-                } catch(Exception e) {
-                    String hdr = String.valueOf(reqW.headers);
-                    if (hdr.length() > 32768) hdr = hdr.substring(0,32768);
-                    msg.Request_Headers__c = hdr;
-                }
+            // Always stamp headers - even if empty, store {} so audit shows it was captured
+            // Merge wrapper headers + auto Content-Type that P2P_RequestProcessor would add
+            Map<String,String> hdrMap = reqW.headers != null ? new Map<String,String>(reqW.headers) : new Map<String,String>();
+            if (String.isNotBlank(reqW.body) && !hasHeader(hdrMap, 'Content-Type')) {
+                hdrMap.put('Content-Type', 'application/json');
+            }
+            try {
+                String hdr = JSON.serialize(hdrMap);
+                if (String.isBlank(hdr)) hdr = '{}';
+                if (hdr.length() > 32768) hdr = hdr.substring(0,32768);
+                msg.Request_Headers__c = hdr;
+            } catch(Exception e) {
+                String hdr = String.valueOf(hdrMap);
+                if (String.isBlank(hdr)) hdr = '{}';
+                if (hdr.length() > 32768) hdr = hdr.substring(0,32768);
+                msg.Request_Headers__c = hdr;
             }
         }
         // Response minimum fields - always entered
@@ -81,6 +104,14 @@ public with sharing class IntegrationMessageService {
         // Ensure Failure_Reason is null on success (already)
         if (msg.Is_Success__c && String.isNotBlank(msg.Failure_Reason__c)) msg.Failure_Reason__c = null;
         return msg;
+    }
+
+    private static Boolean hasHeader(Map<String,String> headers, String key) {
+        if (headers == null || String.isBlank(key)) return false;
+        for (String k : headers.keySet()) {
+            if (k.equalsIgnoreCase(key)) return true;
+        }
+        return false;
     }
 
     // Buffer to avoid "uncommitted work pending" when multiple callouts in same transaction (e.g., BestStories tiles loop)
