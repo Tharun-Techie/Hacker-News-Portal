@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>BestStoriesController</members>
+        <members>TopStoriesController</members>
+        <members>P2P_CalloutService</members>
+        <members>P2P_HttpRequestWrapper</members>
+        <members>P2P_HttpResponseWrapper</members>
+        <members>P2P_RequestProcessor</members>
+        <members>P2P_ResponseProcessor</members>
+        <members>ResponseWrapper</members>
+        <members>Global_Constants</members>
+        <members>GeneralMethods</members>
+        <members>BestStoriesControllerTest</members>
+        <members>TopStoriesControllerTest</members>
+        <members>P2P_CalloutServiceTest</members>
+        <members>P2P_CoverageBoostTest</members>
+        <name>ApexClass</name>
+    </types>
+    <version>66.0</version>
+</Package>
