@@ -4,4 +4,5 @@
     <label>Is Success</label>
     <type>Checkbox</type>
     <defaultValue>false</defaultValue>
+    <description>Deployed</description>
 </CustomField>

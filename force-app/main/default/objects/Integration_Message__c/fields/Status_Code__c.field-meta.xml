@@ -5,4 +5,5 @@
     <precision>5</precision>
     <scale>0</scale>
     <type>Number</type>
+    <description>Deployed</description>
 </CustomField>

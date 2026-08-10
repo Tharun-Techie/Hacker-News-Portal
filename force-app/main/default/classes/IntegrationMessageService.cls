@@ -5,28 +5,81 @@ public with sharing class IntegrationMessageService {
      */
     public static Integration_Message__c buildMessage(P2P_HttpRequestWrapper reqW, P2P_HttpResponseWrapper resW, String integrationName, String operation, String referenceId) {
         Integration_Message__c msg = new Integration_Message__c();
+        // Request minimum fields
         if (reqW != null) {
-            msg.Endpoint__c = reqW.endpoint != null ? (reqW.endpoint.length() > 255 ? reqW.endpoint.substring(0,255) : reqW.endpoint) : null;
-            msg.Http_Method__c = reqW.method;
-            msg.Request_Body__c = reqW.body;
-            msg.Named_Credential__c = reqW.namedCredential;
+            String ep = reqW.endpoint;
+            if (String.isNotBlank(ep) && ep.length() > 255) ep = ep.substring(0,255);
+            msg.Endpoint__c = ep;
+            String m = reqW.method;
+            if (String.isNotBlank(m) && m.length() > 20) m = m.substring(0,20);
+            msg.Http_Method__c = m;
+            String reqBody = reqW.body;
+            if (String.isNotBlank(reqBody) && reqBody.length() > 131072) reqBody = reqBody.substring(0,131072);
+            msg.Request_Body__c = reqBody;
+            String nc = reqW.namedCredential;
+            if (String.isNotBlank(nc) && nc.length() > 100) nc = nc.substring(0,100);
+            msg.Named_Credential__c = nc;
             if (reqW.headers != null && !reqW.headers.isEmpty()) {
-                try { msg.Request_Headers__c = JSON.serialize(reqW.headers); } catch(Exception e) { msg.Request_Headers__c = String.valueOf(reqW.headers); }
-            }
-            if (reqW.queryParams != null && !reqW.queryParams.isEmpty()) {
-                // append query params to endpoint already handled by processor, but store for audit
+                try {
+                    String hdr = JSON.serialize(reqW.headers);
+                    if (hdr.length() > 32768) hdr = hdr.substring(0,32768);
+                    msg.Request_Headers__c = hdr;
+                } catch(Exception e) {
+                    String hdr = String.valueOf(reqW.headers);
+                    if (hdr.length() > 32768) hdr = hdr.substring(0,32768);
+                    msg.Request_Headers__c = hdr;
+                }
             }
         }
+        // Response minimum fields - always entered
         if (resW != null) {
-            msg.Response_Body__c = resW.body;
+            String respBody = resW.body;
+            if (String.isNotBlank(respBody) && respBody.length() > 131072) respBody = respBody.substring(0,131072);
+            msg.Response_Body__c = respBody;
             msg.Status_Code__c = resW.statusCode;
-            msg.Status__c = resW.status;
-            msg.Is_Success__c = resW.isSuccess != null ? resW.isSuccess : false;
-            msg.Error_Message__c = resW.errorMessage;
+            String st = resW.status;
+            if (String.isNotBlank(st) && st.length() > 255) st = st.substring(0,255);
+            msg.Status__c = st;
+            Boolean success = resW.isSuccess != null ? resW.isSuccess : false;
+            msg.Is_Success__c = success;
+            String err = resW.errorMessage;
+            if (String.isNotBlank(err) && err.length() > 32768) err = err.substring(0,32768);
+            msg.Error_Message__c = err;
+            // Failure_Reason stamped if any failure (non-2xx or isSuccess false)
+            if (!success) {
+                String failure = err;
+                if (String.isBlank(failure)) {
+                    failure = (resW.status != null ? resW.status : 'Unknown') + ' (' + String.valueOf(resW.statusCode) + ')';
+                    if (String.isNotBlank(resW.body)) {
+                        String snippet = resW.body.length() > 1000 ? resW.body.substring(0,1000) : resW.body;
+                        failure += ' Body:' + snippet;
+                    }
+                }
+                if (String.isNotBlank(failure) && failure.length() > 32768) failure = failure.substring(0,32768);
+                msg.Failure_Reason__c = failure;
+            } else {
+                msg.Failure_Reason__c = null;
+            }
+        } else {
+            // No response wrapper - treat as failure
+            msg.Is_Success__c = false;
+            msg.Failure_Reason__c = 'No response wrapper - callout failed';
+            if (msg.Status_Code__c == null) msg.Status_Code__c = 0;
         }
-        msg.Integration_Name__c = integrationName;
-        msg.Operation__c = operation;
-        msg.Reference_Id__c = referenceId;
+        // Ensure integration/operation/reference are truncated
+        String intName = integrationName;
+        if (String.isNotBlank(intName) && intName.length() > 100) intName = intName.substring(0,100);
+        msg.Integration_Name__c = intName;
+        String op = operation;
+        if (String.isNotBlank(op) && op.length() > 100) op = op.substring(0,100);
+        msg.Operation__c = op;
+        String ref = referenceId;
+        if (String.isNotBlank(ref) && ref.length() > 100) ref = ref.substring(0,100);
+        msg.Reference_Id__c = ref;
+        // Ensure Is_Success defaults
+        if (msg.Is_Success__c == null) msg.Is_Success__c = false;
+        // Ensure Failure_Reason is null on success (already)
+        if (msg.Is_Success__c && String.isNotBlank(msg.Failure_Reason__c)) msg.Failure_Reason__c = null;
         return msg;
     }
 

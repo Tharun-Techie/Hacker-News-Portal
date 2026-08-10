@@ -5,4 +5,5 @@
     <length>20</length>
     <required>false</required>
     <type>Text</type>
+    <description>Deployed</description>
 </CustomField>

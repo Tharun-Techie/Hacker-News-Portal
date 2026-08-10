@@ -4,4 +4,5 @@
     <label>Status</label>
     <length>255</length>
     <type>Text</type>
+    <description>Deployed</description>
 </CustomField>
