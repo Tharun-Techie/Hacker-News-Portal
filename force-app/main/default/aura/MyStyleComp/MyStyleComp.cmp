@@ -1,0 +1,8 @@
+<aura:component implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId" access="global" >
+	<p>Using inline Styling</p>
+    
+    <div style="color:yellow;background-color:black;font-family:'Times New Roman'">Yello Text
+    
+    <p style="color-white">White text with black background</p>
+    </div>
+</aura:component>

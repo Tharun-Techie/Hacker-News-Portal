@@ -1,0 +1,6 @@
+<aura:component >
+	<h1>Hello Guys......</h1>
+    
+    
+    <p>the styling comming from bundel css</p>
+</aura:component>

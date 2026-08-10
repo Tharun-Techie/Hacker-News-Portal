@@ -5,9 +5,8 @@
       "default": true
     }
   ],
-  "name": "orgfarm-4391340cd7-dev-ed.develop.lightning.force.com",
+  "name": "DX-PROJECT-X",
   "namespace": "",
   "sfdcLoginUrl": "https://login.salesforce.com",
-  "sourceApiVersion": "66.0",
-  "defaultLwcLanguage": "javascript"
+  "sourceApiVersion": "66.0"
 }
