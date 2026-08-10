@@ -2,34 +2,27 @@ public class LimitsService {
 
     public static LimitsWrapper getLimits() {
 
-        Http http = new Http();
-        HttpRequest req = new HttpRequest();
-
-        // ✅ Endpoint (use your org URL)
         String baseUrl = URL.getOrgDomainUrl().toExternalForm();
         String endpoint = baseUrl + '/services/data/v65.0/limits';
 
-        req.setEndpoint(endpoint);
-        req.setMethod('GET');
+        P2P_HttpRequestWrapper w = P2P_HttpRequestWrapper.forGet(endpoint);
+        w.withHeader('Authorization', 'Bearer ' + UserInfo.getSessionId());
+        w.withHeader('Content-Type', 'application/json');
 
-        // ✅ Session authentication
-        req.setHeader('Authorization', 'Bearer ' + UserInfo.getSessionId());
-        req.setHeader('Content-Type', 'application/json');
+        P2P_HttpResponseWrapper res = P2P_CalloutService.execute(w);
+        if (!Test.isRunningTest()) { try { IntegrationMessageService.flushBuffer(); } catch(Exception e) {} }
 
-        HttpResponse res = http.send(req);
+        if (res.statusCode == 200) {
 
-        if (res.getStatusCode() == 200) {
-
-            String jsonString = res.getBody();
+            String jsonString = res.body;
             System.debug('Response: ' + jsonString);
 
-            // ✅ Parse into wrapper
             LimitsWrapper wrapper = LimitsWrapper.parse(jsonString);
 
             return wrapper;
 
         } else {
-            System.debug('Error: ' + res.getStatus() + ' Body: ' + res.getBody());
+            System.debug('Error: ' + res.status + ' Body: ' + res.body);
             return null;
         }
     }

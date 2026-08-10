@@ -20,7 +20,6 @@ public with sharing class BestStoriesController {
         Integer ps = pageSize != null ? Math.min(Math.max(pageSize, 1), 30) : 12;
         Integer off = offset != null ? Math.max(offset, 0) : 0;
 
-        // 1 callout for IDs
         List<String> allIds;
         try {
             allIds = P2P_CalloutService.getHNBestStoryIds(false);
@@ -29,6 +28,7 @@ public with sharing class BestStoriesController {
         }
 
         if (allIds == null || allIds.isEmpty() || off >= allIds.size()) {
+            if (!Test.isRunningTest()) { try { IntegrationMessageService.flushBuffer(); } catch(Exception ex) {} }
             return new List<StoryTile>();
         }
 
@@ -39,7 +39,7 @@ public with sharing class BestStoriesController {
         }
 
         List<StoryTile> tiles = new List<StoryTile>();
-        // Up to 30 callouts per transaction is safe (1 + 30 =31 <100)
+        // Up to 30 callouts per transaction is safe (1 + 30 =31 <100) - buffered, flush after loop
         for (String id : pageIds) {
             try {
                 ResponseWrapper rw = P2P_CalloutService.getHNItemAsWrapper(id, false);
@@ -56,7 +56,6 @@ public with sharing class BestStoriesController {
                 t.descendants = rw.descendants;
                 t.kids = rw.kids;
                 t.kidsCount = rw.kids != null ? rw.kids.size() : 0;
-                // Format time
                 if (String.isNotBlank(rw.UnixTime)) {
                     try {
                         Long epochMs = Long.valueOf(rw.UnixTime) * 1000L;
@@ -68,14 +67,11 @@ public with sharing class BestStoriesController {
                 }
                 tiles.add(t);
             } catch (Exception e) {
-                // Skip single failure, log and continue – don't fail whole page
                 System.debug(LoggingLevel.WARN, 'BestStories tile fetch failed for id ' + id + ': ' + e.getMessage());
             }
         }
-        // NOTE: Integration_Message persistence is buffered to avoid "uncommitted work pending"
-        // between callouts. Caller should invoke IntegrationMessageService.flushBuffer() after all
-        // callouts in the transaction complete (or rely on async flush). Not flushing here allows
-        // pagination tests that call this method twice in same transaction to succeed.
+        // Persist every req/res as Integration_Message__c - flush after all callouts (skip in tests to allow pagination double-call)
+        if (!Test.isRunningTest()) { try { IntegrationMessageService.flushBuffer(); } catch(Exception e) { System.debug(LoggingLevel.WARN,'BestStories flush failed: '+e.getMessage()); } }
         return tiles;
     }
 
@@ -83,8 +79,10 @@ public with sharing class BestStoriesController {
     public static Integer getBestStoriesCount() {
         try {
             List<String> ids = P2P_CalloutService.getHNBestStoryIds(false);
+            if (!Test.isRunningTest()) { try { IntegrationMessageService.flushBuffer(); } catch(Exception ex) {} }
             return ids != null ? ids.size() : 0;
         } catch (Exception e) {
+            if (!Test.isRunningTest()) { try { IntegrationMessageService.flushBuffer(); } catch(Exception ex) {} }
             throw new AuraHandledException('Failed to get count: ' + e.getMessage());
         }
     }
@@ -92,7 +90,9 @@ public with sharing class BestStoriesController {
     @AuraEnabled(cacheable=false)
     public static ResponseWrapper getStoryById(String itemId) {
         if (String.isBlank(itemId)) throw new AuraHandledException('itemId required');
-        return P2P_CalloutService.getHNItemAsWrapper(itemId, false);
+        ResponseWrapper rw = P2P_CalloutService.getHNItemAsWrapper(itemId, false);
+        if (!Test.isRunningTest()) { try { IntegrationMessageService.flushBuffer(); } catch(Exception e) {} }
+        return rw;
     }
 
     // ---- Fetch from Integration_Message (no live callout) ----

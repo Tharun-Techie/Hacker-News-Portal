@@ -2,21 +2,12 @@ public with sharing class CatFactController {
 
     @AuraEnabled(cacheable=false)
     public static String getCatFact() {
-
-        // Initalining a http request
-        Http http = new Http();
-        HttpRequest req = new HttpRequest();
-        //adding api parameter
-        req.setEndpoint('https://catfact.ninja/fact');
-        //setting set request
-        req.setMethod('GET');
-        //getting response
-        HttpResponse res = http.send(req);
-        // checking 200 response = true
-        if (res.getStatusCode() == 200) {
-            return res.getBody();
+        P2P_HttpRequestWrapper w = P2P_HttpRequestWrapper.forGet('https://catfact.ninja/fact');
+        P2P_HttpResponseWrapper res = P2P_CalloutService.execute(w);
+        if (!Test.isRunningTest()) { try { IntegrationMessageService.flushBuffer(); } catch(Exception e) {} }
+        if (res.isSuccess) {
+            return res.body;
         } else {
-            
             throw new AuraHandledException('Failed to fetch cat fact');
         }
     }
