@@ -1,0 +1,18 @@
+.tile {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.tile:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+.slds-card_boundary {
+    border: 1px solid #d8dde6;
+}
+.slds-line-clamp {
+    line-height: 1.4;
+}

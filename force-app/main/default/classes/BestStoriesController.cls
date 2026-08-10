@@ -1,0 +1,93 @@
+public with sharing class BestStoriesController {
+
+    public class StoryTile {
+        @AuraEnabled public String itemId;
+        @AuraEnabled public String title;
+        @AuraEnabled public String url;
+        @AuraEnabled public String score;
+        @AuraEnabled public String postedBy;
+        @AuraEnabled public String unixTime;
+        @AuraEnabled public String formattedTime;
+        @AuraEnabled public String itemType;
+        @AuraEnabled public String descendants;
+        @AuraEnabled public List<String> kids;
+        @AuraEnabled public Integer kidsCount;
+        @AuraEnabled public Boolean hasUrl;
+    }
+
+    @AuraEnabled(cacheable=false)
+    public static List<StoryTile> getBestStoriesTiles(Integer pageSize, Integer offset) {
+        Integer ps = pageSize != null ? Math.min(Math.max(pageSize, 1), 30) : 12;
+        Integer off = offset != null ? Math.max(offset, 0) : 0;
+
+        // 1 callout for IDs
+        List<String> allIds;
+        try {
+            allIds = P2P_CalloutService.getHNBestStoryIds(false);
+        } catch (Exception e) {
+            throw new AuraHandledException('Failed to fetch best story IDs: ' + e.getMessage());
+        }
+
+        if (allIds == null || allIds.isEmpty() || off >= allIds.size()) {
+            return new List<StoryTile>();
+        }
+
+        Integer endIdx = Math.min(off + ps, allIds.size());
+        List<String> pageIds = new List<String>();
+        for (Integer i = off; i < endIdx; i++) {
+            pageIds.add(allIds[i]);
+        }
+
+        List<StoryTile> tiles = new List<StoryTile>();
+        // Up to 30 callouts per transaction is safe (1 + 30 =31 <100)
+        for (String id : pageIds) {
+            try {
+                ResponseWrapper rw = P2P_CalloutService.getHNItemAsWrapper(id, false);
+                if (rw == null) continue;
+                StoryTile t = new StoryTile();
+                t.itemId = rw.ItemId;
+                t.title = String.isNotBlank(rw.title) ? rw.title : '(No title) #' + rw.ItemId;
+                t.url = rw.url;
+                t.hasUrl = String.isNotBlank(rw.url);
+                t.score = rw.score;
+                t.postedBy = rw.postedBy;
+                t.unixTime = rw.UnixTime;
+                t.itemType = rw.Itemtype;
+                t.descendants = rw.descendants;
+                t.kids = rw.kids;
+                t.kidsCount = rw.kids != null ? rw.kids.size() : 0;
+                // Format time
+                if (String.isNotBlank(rw.UnixTime)) {
+                    try {
+                        Long epochMs = Long.valueOf(rw.UnixTime) * 1000L;
+                        DateTime dt = DateTime.newInstance(epochMs);
+                        t.formattedTime = dt.format('yyyy-MM-dd HH:mm');
+                    } catch (Exception ex) {
+                        t.formattedTime = rw.UnixTime;
+                    }
+                }
+                tiles.add(t);
+            } catch (Exception e) {
+                // Skip single failure, log and continue – don't fail whole page
+                System.debug(LoggingLevel.WARN, 'BestStories tile fetch failed for id ' + id + ': ' + e.getMessage());
+            }
+        }
+        return tiles;
+    }
+
+    @AuraEnabled(cacheable=false)
+    public static Integer getBestStoriesCount() {
+        try {
+            List<String> ids = P2P_CalloutService.getHNBestStoryIds(false);
+            return ids != null ? ids.size() : 0;
+        } catch (Exception e) {
+            throw new AuraHandledException('Failed to get count: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled(cacheable=false)
+    public static ResponseWrapper getStoryById(String itemId) {
+        if (String.isBlank(itemId)) throw new AuraHandledException('itemId required');
+        return P2P_CalloutService.getHNItemAsWrapper(itemId, false);
+    }
+}
