@@ -6,4 +6,5 @@
     <required>false</required>
     <type>Text</type>
     <trackTrending>false</trackTrending>
+    <description>Deployed</description>
 </CustomField>

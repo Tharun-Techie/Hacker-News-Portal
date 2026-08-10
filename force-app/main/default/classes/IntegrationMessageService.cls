@@ -5,29 +5,113 @@ public with sharing class IntegrationMessageService {
      */
     public static Integration_Message__c buildMessage(P2P_HttpRequestWrapper reqW, P2P_HttpResponseWrapper resW, String integrationName, String operation, String referenceId) {
         Integration_Message__c msg = new Integration_Message__c();
+        // Request minimum fields - ensure every hit stamps request data
         if (reqW != null) {
-            msg.Endpoint__c = reqW.endpoint != null ? (reqW.endpoint.length() > 255 ? reqW.endpoint.substring(0,255) : reqW.endpoint) : null;
-            msg.Http_Method__c = reqW.method;
-            msg.Request_Body__c = reqW.body;
-            msg.Named_Credential__c = reqW.namedCredential;
-            if (reqW.headers != null && !reqW.headers.isEmpty()) {
-                try { msg.Request_Headers__c = JSON.serialize(reqW.headers); } catch(Exception e) { msg.Request_Headers__c = String.valueOf(reqW.headers); }
+            // Resolve final endpoint like P2P_RequestProcessor does (named cred + query params)
+            String ep = reqW.endpoint;
+            if (String.isNotBlank(reqW.namedCredential)) {
+                String nc = reqW.namedCredential.trim();
+                if (nc.toLowerCase().startsWith('callout:')) nc = nc.substringAfter(':');
+                String path = ep != null ? ep : '';
+                if (!path.startsWith('/')) path = '/' + path;
+                ep = 'callout:' + nc + path;
             }
+            // Append queryParams for audit if any
             if (reqW.queryParams != null && !reqW.queryParams.isEmpty()) {
-                // append query params to endpoint already handled by processor, but store for audit
+                List<String> parts = new List<String>();
+                for (String k : reqW.queryParams.keySet()) {
+                    parts.add(k + '=' + reqW.queryParams.get(k));
+                }
+                String qs = String.join(parts, '&');
+                ep = ep + (ep.contains('?') ? '&' : '?') + qs;
+            }
+            if (String.isNotBlank(ep) && ep.length() > 255) ep = ep.substring(0,255);
+            msg.Endpoint__c = ep;
+            String m = reqW.method;
+            if (String.isNotBlank(m) && m.length() > 20) m = m.substring(0,20);
+            msg.Http_Method__c = String.isNotBlank(m) ? m : 'GET';
+            String reqBody = reqW.body;
+            if (String.isNotBlank(reqBody) && reqBody.length() > 131072) reqBody = reqBody.substring(0,131072);
+            msg.Request_Body__c = reqBody;
+            String nc = reqW.namedCredential;
+            if (String.isNotBlank(nc) && nc.length() > 100) nc = nc.substring(0,100);
+            msg.Named_Credential__c = nc;
+            // Always stamp headers - even if empty, store {} so audit shows it was captured
+            // Merge wrapper headers + auto Content-Type that P2P_RequestProcessor would add
+            Map<String,String> hdrMap = reqW.headers != null ? new Map<String,String>(reqW.headers) : new Map<String,String>();
+            if (String.isNotBlank(reqW.body) && !hasHeader(hdrMap, 'Content-Type')) {
+                hdrMap.put('Content-Type', 'application/json');
+            }
+            try {
+                String hdr = JSON.serialize(hdrMap);
+                if (String.isBlank(hdr)) hdr = '{}';
+                if (hdr.length() > 32768) hdr = hdr.substring(0,32768);
+                msg.Request_Headers__c = hdr;
+            } catch(Exception e) {
+                String hdr = String.valueOf(hdrMap);
+                if (String.isBlank(hdr)) hdr = '{}';
+                if (hdr.length() > 32768) hdr = hdr.substring(0,32768);
+                msg.Request_Headers__c = hdr;
             }
         }
+        // Response minimum fields - always entered
         if (resW != null) {
-            msg.Response_Body__c = resW.body;
+            String respBody = resW.body;
+            if (String.isNotBlank(respBody) && respBody.length() > 131072) respBody = respBody.substring(0,131072);
+            msg.Response_Body__c = respBody;
             msg.Status_Code__c = resW.statusCode;
-            msg.Status__c = resW.status;
-            msg.Is_Success__c = resW.isSuccess != null ? resW.isSuccess : false;
-            msg.Error_Message__c = resW.errorMessage;
+            String st = resW.status;
+            if (String.isNotBlank(st) && st.length() > 255) st = st.substring(0,255);
+            msg.Status__c = st;
+            Boolean success = resW.isSuccess != null ? resW.isSuccess : false;
+            msg.Is_Success__c = success;
+            String err = resW.errorMessage;
+            if (String.isNotBlank(err) && err.length() > 32768) err = err.substring(0,32768);
+            msg.Error_Message__c = err;
+            // Failure_Reason stamped if any failure (non-2xx or isSuccess false)
+            if (!success) {
+                String failure = err;
+                if (String.isBlank(failure)) {
+                    failure = (resW.status != null ? resW.status : 'Unknown') + ' (' + String.valueOf(resW.statusCode) + ')';
+                    if (String.isNotBlank(resW.body)) {
+                        String snippet = resW.body.length() > 1000 ? resW.body.substring(0,1000) : resW.body;
+                        failure += ' Body:' + snippet;
+                    }
+                }
+                if (String.isNotBlank(failure) && failure.length() > 32768) failure = failure.substring(0,32768);
+                msg.Failure_Reason__c = failure;
+            } else {
+                msg.Failure_Reason__c = null;
+            }
+        } else {
+            // No response wrapper - treat as failure
+            msg.Is_Success__c = false;
+            msg.Failure_Reason__c = 'No response wrapper - callout failed';
+            if (msg.Status_Code__c == null) msg.Status_Code__c = 0;
         }
-        msg.Integration_Name__c = integrationName;
-        msg.Operation__c = operation;
-        msg.Reference_Id__c = referenceId;
+        // Ensure integration/operation/reference are truncated
+        String intName = integrationName;
+        if (String.isNotBlank(intName) && intName.length() > 100) intName = intName.substring(0,100);
+        msg.Integration_Name__c = intName;
+        String op = operation;
+        if (String.isNotBlank(op) && op.length() > 100) op = op.substring(0,100);
+        msg.Operation__c = op;
+        String ref = referenceId;
+        if (String.isNotBlank(ref) && ref.length() > 100) ref = ref.substring(0,100);
+        msg.Reference_Id__c = ref;
+        // Ensure Is_Success defaults
+        if (msg.Is_Success__c == null) msg.Is_Success__c = false;
+        // Ensure Failure_Reason is null on success (already)
+        if (msg.Is_Success__c && String.isNotBlank(msg.Failure_Reason__c)) msg.Failure_Reason__c = null;
         return msg;
+    }
+
+    private static Boolean hasHeader(Map<String,String> headers, String key) {
+        if (headers == null || String.isBlank(key)) return false;
+        for (String k : headers.keySet()) {
+            if (k.equalsIgnoreCase(key)) return true;
+        }
+        return false;
     }
 
     // Buffer to avoid "uncommitted work pending" when multiple callouts in same transaction (e.g., BestStories tiles loop)

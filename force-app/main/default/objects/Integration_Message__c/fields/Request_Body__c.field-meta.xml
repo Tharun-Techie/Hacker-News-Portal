@@ -5,4 +5,5 @@
     <length>131072</length>
     <type>LongTextArea</type>
     <visibleLines>5</visibleLines>
+    <description>Deployed</description>
 </CustomField>

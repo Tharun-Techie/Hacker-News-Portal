@@ -29,5 +29,9 @@
         <members>P2P_CoverageBoostTest</members>
         <name>ApexClass</name>
     </types>
+    <types>
+        <members>Integration_Message_Access</members>
+        <name>PermissionSet</name>
+    </types>
     <version>66.0</version>
 </Package>
