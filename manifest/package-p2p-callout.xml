@@ -9,6 +9,7 @@
         <members>IntegrationMessageService</members>
         <members>IntegrationMessageFlushQueueable</members>
         <members>P2P_CalloutService</members>
+        <members>NewStoriesController</members>
         <members>P2P_HttpRequestWrapper</members>
         <members>P2P_HttpResponseWrapper</members>
         <members>HNCacheService</members>

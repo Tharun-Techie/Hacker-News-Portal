@@ -6,9 +6,9 @@
         <name>CustomObject</name>
     </types>
     <types>
-        <members>BestStoriesController</members>
-        <members>TopStoriesController</members>
         <members>NewStoriesController</members>
+        <members>IntegrationMessageService</members>
+        <members>IntegrationMessageFlushQueueable</members>
         <members>P2P_CalloutService</members>
         <members>P2P_HttpRequestWrapper</members>
         <members>P2P_HttpResponseWrapper</members>
@@ -18,16 +18,11 @@
         <members>Global_Constants</members>
         <members>HNCacheService</members>
         <members>GeneralMethods</members>
-        <members>BestStoriesControllerTest</members>
-        <members>TopStoriesControllerTest</members>
-        <members>P2P_CalloutServiceTest</members>
-        <members>P2P_CoverageBoostTest</members>
-        <members>IntegrationMessageService</members>
-        <members>IntegrationMessageFlushQueueable</members>
-        <members>IntegrationMessageServiceTest</members>
-        <members>OrgWideCoverageTest</members>
-        <members>TriggerCoverageTest</members>
         <name>ApexClass</name>
+    </types>
+    <types>
+        <members>newStoriesTiles</members>
+        <name>LightningComponentBundle</name>
     </types>
     <version>66.0</version>
 </Package>

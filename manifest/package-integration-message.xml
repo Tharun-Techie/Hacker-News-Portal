@@ -11,6 +11,7 @@
         <members>IntegrationMessageFlushQueueable</members>
         <members>BestStoriesController</members>
         <members>TopStoriesController</members>
+        <members>NewStoriesController</members>
         <members>P2P_CalloutService</members>
         <members>P2P_HttpRequestWrapper</members>
         <members>P2P_HttpResponseWrapper</members>
