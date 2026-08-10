@@ -2,6 +2,7 @@
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
         <members>Integration_Message__c</members>
+        <members>HN_DataObject__c</members>
         <name>CustomObject</name>
     </types>
     <types>
@@ -14,6 +15,7 @@
         <members>P2P_ResponseProcessor</members>
         <members>ResponseWrapper</members>
         <members>Global_Constants</members>
+        <members>HNCacheService</members>
         <members>GeneralMethods</members>
         <members>BestStoriesControllerTest</members>
         <members>TopStoriesControllerTest</members>

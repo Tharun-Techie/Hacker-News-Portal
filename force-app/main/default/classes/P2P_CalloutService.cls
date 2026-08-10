@@ -80,9 +80,17 @@ public with sharing class P2P_CalloutService {
     }
 
     public static ResponseWrapper getHNItemAsWrapper(String itemId, Boolean useNC) {
+        // Check HN_DataObject cache first - if cached, return without callout
+        try {
+            ResponseWrapper cached = HNCacheService.getFromCache(itemId);
+            if (cached != null) return cached;
+        } catch (Exception e) {}
         P2P_HttpResponseWrapper res = getHNItem(itemId, useNC);
         if (!res.isSuccess) throw new AuraHandledException(res.errorMessage);
-        return P2P_ResponseProcessor.deserializeHNItem(res.body);
+        ResponseWrapper rw = P2P_ResponseProcessor.deserializeHNItem(res.body);
+        // Cache the successful item for future hits
+        try { HNCacheService.putToCache(rw); } catch (Exception e) { System.debug(LoggingLevel.WARN, 'HN cache put failed: '+e.getMessage()); }
+        return rw;
     }
 
     public static List<String> getHNTopStoryIds(Boolean useNC) {

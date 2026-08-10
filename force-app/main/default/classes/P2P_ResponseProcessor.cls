@@ -58,11 +58,12 @@ public with sharing class P2P_ResponseProcessor {
     }
 
     /**
-     * Map HN ResponseWrapper to SObject.
+     * Map HN ResponseWrapper to SObject - ensures required Name and ItemType for cache.
      */
     public static HN_DataObject__c toHNDataObject(ResponseWrapper story) {
         if (story == null) return null;
         HN_DataObject__c obj = new HN_DataObject__c();
+        obj.Name = String.isNotBlank(story.ItemId) ? 'HN-' + story.ItemId : (String.isNotBlank(story.title) ? story.title.left(80) : 'HN-' + System.now().getTime());
         obj.Username__c = story.postedBy;
         obj.Descendants__c = story.descendants != null ? Integer.valueOf(story.descendants) : 0;
         obj.ItemId__c = story.ItemId != null ? Long.valueOf(story.ItemId) : null;
@@ -71,8 +72,33 @@ public with sharing class P2P_ResponseProcessor {
         obj.Time__c = story.UnixTime != null ? Long.valueOf(story.UnixTime) : null;
         obj.Text__c = story.title;
         obj.Url__c = story.url;
-        // Optional fields if present on ResponseWrapper in future
+        // Required picklist ItemType - default to story if blank or invalid
+        String t = String.isNotBlank(story.Itemtype) ? story.Itemtype.toLowerCase() : 'story';
+        Set<String> allowed = new Set<String>{'story','job','comment','poll','pollopt'};
+        obj.ItemType__c = allowed.contains(t) ? t : 'story';
         return obj;
+    }
+
+    /**
+     * Reverse: HN_DataObject__c to ResponseWrapper for cache reads.
+     */
+    public static ResponseWrapper fromHNDataObject(HN_DataObject__c obj) {
+        if (obj == null) return null;
+        ResponseWrapper rw = new ResponseWrapper();
+        rw.postedBy = obj.Username__c;
+        rw.descendants = obj.Descendants__c != null ? String.valueOf(obj.Descendants__c) : null;
+        rw.ItemId = obj.ItemId__c != null ? String.valueOf(obj.ItemId__c) : null;
+        rw.kids = String.isNotBlank(obj.Kids__c) ? obj.Kids__c.split(',') : new List<String>();
+        // Clean empty kids
+        List<String> cleanKids = new List<String>();
+        for (String k : rw.kids) if (String.isNotBlank(k)) cleanKids.add(k.trim());
+        rw.kids = cleanKids;
+        rw.score = obj.Score__c != null ? String.valueOf(obj.Score__c) : null;
+        rw.UnixTime = obj.Time__c != null ? String.valueOf(obj.Time__c) : null;
+        rw.title = obj.Text__c;
+        rw.Itemtype = obj.ItemType__c;
+        rw.url = obj.Url__c;
+        return rw;
     }
 
     /**

@@ -39,11 +39,16 @@ public with sharing class BestStoriesController {
         }
 
         List<StoryTile> tiles = new List<StoryTile>();
-        // Up to 30 callouts per transaction is safe (1 + 30 =31 <100) - buffered, flush after loop
+        // HN_DataObject cache: bulk fetch to avoid N+1 SOQL, then live for misses
+        Map<String, ResponseWrapper> cachedMap = new Map<String, ResponseWrapper>();
+        try { cachedMap = HNCacheService.getBulkFromCache(pageIds); } catch (Exception e) {}
         for (String id : pageIds) {
             try {
-                ResponseWrapper rw = P2P_CalloutService.getHNItemAsWrapper(id, false);
-                if (rw == null) continue;
+                ResponseWrapper rw = cachedMap.get(id);
+                if (rw == null) {
+                    rw = P2P_CalloutService.getHNItemAsWrapper(id, false);
+                    if (rw == null) continue;
+                }
                 StoryTile t = new StoryTile();
                 t.itemId = rw.ItemId;
                 t.title = String.isNotBlank(rw.title) ? rw.title : '(No title) #' + rw.ItemId;
@@ -70,8 +75,11 @@ public with sharing class BestStoriesController {
                 System.debug(LoggingLevel.WARN, 'BestStories tile fetch failed for id ' + id + ': ' + e.getMessage());
             }
         }
-        // Persist every req/res as Integration_Message__c - flush after all callouts (skip in tests to allow pagination double-call)
-        if (!Test.isRunningTest()) { try { IntegrationMessageService.flushBuffer(); } catch(Exception e) { System.debug(LoggingLevel.WARN,'BestStories flush failed: '+e.getMessage()); } }
+        // Persist Integration_Message and HN_DataObject cache (buffered, flush after all callouts)
+        if (!Test.isRunningTest()) {
+            try { IntegrationMessageService.flushBuffer(); } catch(Exception e) { System.debug(LoggingLevel.WARN,'BestStories flush failed: '+e.getMessage()); }
+            try { HNCacheService.flushCache(); } catch(Exception e) { System.debug(LoggingLevel.WARN,'HN cache flush failed: '+e.getMessage()); }
+        }
         return tiles;
     }
 
@@ -91,7 +99,10 @@ public with sharing class BestStoriesController {
     public static ResponseWrapper getStoryById(String itemId) {
         if (String.isBlank(itemId)) throw new AuraHandledException('itemId required');
         ResponseWrapper rw = P2P_CalloutService.getHNItemAsWrapper(itemId, false);
-        if (!Test.isRunningTest()) { try { IntegrationMessageService.flushBuffer(); } catch(Exception e) {} }
+        if (!Test.isRunningTest()) {
+            try { IntegrationMessageService.flushBuffer(); } catch(Exception e) {}
+            try { HNCacheService.flushCache(); } catch(Exception e) {}
+        }
         return rw;
     }
 
@@ -130,5 +141,49 @@ public with sharing class BestStoriesController {
     @AuraEnabled(cacheable=false)
     public static Integer getBestStoriesCountFromStore() {
         try { return P2P_CalloutService.getHNBestStoryIdsFromStore().size(); } catch(Exception e) { throw new AuraHandledException('No stored count: '+e.getMessage()); }
+    }
+
+    // ---- Fetch from HN_DataObject cache (no live callout) - cached records ----
+    @AuraEnabled(cacheable=false)
+    public static List<StoryTile> getBestStoriesTilesFromHNCache(Integer pageSize, Integer offset) {
+        List<String> allIds = P2P_CalloutService.getHNBestStoryIdsFromStore();
+        Integer ps = pageSize != null ? Math.min(Math.max(pageSize, 1), 30) : 12;
+        Integer off = offset != null ? Math.max(offset, 0) : 0;
+        if (allIds == null || allIds.isEmpty() || off >= allIds.size()) return new List<StoryTile>();
+        Integer endIdx = Math.min(off + ps, allIds.size());
+        List<String> pageIds = new List<String>();
+        for (Integer i = off; i < endIdx; i++) pageIds.add(allIds[i]);
+        Map<String, ResponseWrapper> cached = new Map<String, ResponseWrapper>();
+        try { cached = HNCacheService.getBulkFromCache(pageIds); } catch (Exception e) {}
+        List<StoryTile> tiles = new List<StoryTile>();
+        for (String id : pageIds) {
+            try {
+                ResponseWrapper rw = cached.get(id);
+                if (rw == null) rw = HNCacheService.getFromCache(id);
+                if (rw == null) continue;
+                StoryTile t = new StoryTile();
+                t.itemId = rw.ItemId; t.title = String.isNotBlank(rw.title) ? rw.title : '(No title) #' + rw.ItemId;
+                t.url = rw.url; t.hasUrl = String.isNotBlank(rw.url); t.score = rw.score; t.postedBy = rw.postedBy;
+                t.unixTime = rw.UnixTime; t.itemType = rw.Itemtype; t.descendants = rw.descendants; t.kids = rw.kids; t.kidsCount = rw.kids != null ? rw.kids.size() : 0;
+                if (String.isNotBlank(rw.UnixTime)) {
+                    try { Long epochMs = Long.valueOf(rw.UnixTime) * 1000L; DateTime dt = DateTime.newInstance(epochMs); t.formattedTime = dt.format('yyyy-MM-dd HH:mm'); } catch(Exception ex) { t.formattedTime = rw.UnixTime; }
+                }
+                tiles.add(t);
+            } catch(Exception e) { System.debug(LoggingLevel.WARN, 'BestStories HN cache fetch failed id '+id+': '+e.getMessage()); }
+        }
+        return tiles;
+    }
+
+    @AuraEnabled(cacheable=false)
+    public static ResponseWrapper getStoryByIdFromHNCache(String itemId) {
+        if (String.isBlank(itemId)) throw new AuraHandledException('itemId required');
+        ResponseWrapper rw = HNCacheService.getFromCache(itemId);
+        if (rw == null) throw new AuraHandledException('No cached HN_DataObject for item ' + itemId);
+        return rw;
+    }
+
+    @AuraEnabled(cacheable=false)
+    public static Integer getBestStoriesCountFromHNCache() {
+        try { return P2P_CalloutService.getHNBestStoryIdsFromStore().size(); } catch(Exception e) { throw new AuraHandledException('No cached count: '+e.getMessage()); }
     }
 }

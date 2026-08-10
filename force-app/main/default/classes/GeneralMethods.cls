@@ -6,7 +6,8 @@ public class GeneralMethods {
 
     public static void insertRecord(String itemId) {
         ResponseWrapper story = (ResponseWrapper)JSON.deserialize(getResponse(itemId), ResponseWrapper.class);
-        Database.insert(objectMaper(story),false);
+        HNCacheService.putToCache(story);
+        try { HNCacheService.flushCache(); } catch (Exception e) { System.debug(LoggingLevel.WARN, 'HNCache flush failed: '+e.getMessage()); }
     }
 
     public static String getResponse(String itemId) {
@@ -79,22 +80,8 @@ public class GeneralMethods {
     }
 	
     Public static HN_DataObject__c objectMaper(ResponseWrapper story){
-            HN_DataObject__c obj = new HN_DataObject__c();
-            obj.Username__c = story.postedBy;
-           
-        
-            obj.Descendants__c = story.descendants != null ? Integer.valueOf(story.descendants) : 0;
-            obj.ItemId__c = story.ItemId != null ? Long.valueOf(story.ItemId) : null;
-            
-            
-            obj.Kids__c = story.kids != null ? String.join(story.kids, ',') : null;
-            
-            obj.Score__c = story.score != null ? Integer.valueOf(story.score) : 0;
-            obj.Time__c =  story.UnixTime != null ? Long.valueOf(story.UnixTime) : null;
-            obj.Text__c = story.title;
-            obj.Url__c = story.url;
-            
-            return obj;
+            // Delegate to central mapper which handles Name/ItemType required fields
+            return P2P_ResponseProcessor.toHNDataObject(story);
     }
     
 
