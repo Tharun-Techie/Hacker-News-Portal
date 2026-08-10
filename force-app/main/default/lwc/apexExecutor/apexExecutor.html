@@ -1,0 +1,29 @@
+<template>
+    <lightning-card title="Apex Snippet Executor" icon-name="custom:custom63">
+        <div class="slds-var-m-around_medium">
+            <lightning-textarea
+                name="apexCode"
+                label="Enter Apex Code"
+                placeholder="System.debug('Hello World');"
+                value={codeSnippet}
+                onchange={handleCodeChange}
+                rows="10"
+                class="slds-var-m-bottom_medium">
+            </lightning-textarea>
+
+            <lightning-button 
+                variant="brand" 
+                label="Execute Code" 
+                onclick={handleExecute} 
+                disabled={isExecuting}>
+            </lightning-button>
+        </div>
+
+        <template lwc:if={executionResult}>
+            <div class="slds-var-m-around_medium">
+                <h3 class="slds-text-heading_small">Result / Debug Output:</h3>
+                <pre class="slds-box slds-theme_default">{executionResult}</pre>
+            </div>
+        </template>
+    </lightning-card>
+</template>
