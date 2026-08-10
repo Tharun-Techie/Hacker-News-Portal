@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
+        <members>Integration_Message__c</members>
+        <name>CustomObject</name>
+    </types>
+    <types>
         <members>BestStoriesController</members>
         <members>TopStoriesController</members>
         <members>P2P_CalloutService</members>
@@ -15,6 +19,10 @@
         <members>TopStoriesControllerTest</members>
         <members>P2P_CalloutServiceTest</members>
         <members>P2P_CoverageBoostTest</members>
+        <members>IntegrationMessageService</members>
+        <members>IntegrationMessageServiceTest</members>
+        <members>OrgWideCoverageTest</members>
+        <members>TriggerCoverageTest</members>
         <name>ApexClass</name>
     </types>
     <version>66.0</version>
