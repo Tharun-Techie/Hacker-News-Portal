@@ -3,6 +3,14 @@
     <types>
         <members>BestStoriesController</members>
         <members>StoryBatch</members>
+        <members>P2P_CalloutService</members>
+        <members>P2P_HttpRequestWrapper</members>
+        <members>P2P_HttpResponseWrapper</members>
+        <members>P2P_RequestProcessor</members>
+        <members>P2P_ResponseProcessor</members>
+        <members>ResponseWrapper</members>
+        <members>Global_Constants</members>
+        <members>GeneralMethods</members>
         <name>ApexClass</name>
     </types>
     <types>
