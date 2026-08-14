@@ -1,0 +1,39 @@
+<template>
+    <article class="tile slds-card slds-card_boundary">
+        <div class="slds-card__header slds-grid slds-p-around_small" style={headerStyle}>
+            <div class="slds-media slds-media_center slds-has-flexi-truncate">
+                <div class="slds-media__figure">
+                    <span class={badgeClass}>{story.score} pts</span>
+                </div>
+                <div class="slds-media__body slds-truncate">
+                    <span class="slds-text-title slds-text-color_weak">#{story.itemId} • {story.itemType}</span>
+                </div>
+            </div>
+        </div>
+        <div class="slds-card__body slds-card__body_inner slds-p-around_medium" style="min-height:140px;">
+            <h3 class="slds-text-heading_small slds-m-bottom_x-small slds-line-clamp" title={story.title} style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; min-height:2.5rem;">
+                {story.title}
+            </h3>
+            <div class="slds-text-body_small slds-text-color_weak slds-m-bottom_small">
+                <span>by <b>{story.postedBy}</b></span>
+                <span class="slds-m-left_x-small">• {story.formattedTime}</span>
+            </div>
+            <template if:true={story.hasUrl}>
+                <a href={story.url} target="_blank" class="slds-text-link slds-text-body_small slds-truncate" style="display:block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title={story.url}>{story.url}</a>
+            </template>
+            <template if:false={story.hasUrl}>
+                <span class="slds-text-body_small slds-text-color_weak">No external URL</span>
+            </template>
+        </div>
+        <div class="slds-card__footer slds-grid slds-grid_align-spread slds-p-around_small" style="border-top:1px solid #d8dde6;">
+            <span class="slds-badge">
+                <lightning-icon icon-name="utility:comments" size="xx-small" class="slds-m-right_xx-small"></lightning-icon>
+                {story.descendants} comments
+            </span>
+            <span class="slds-text-body_small slds-text-color_weak">{story.kidsCount} kids</span>
+            <template if:true={story.hasUrl}>
+                <lightning-button label="Open" variant="brand" size="small" data-url={story.url} onclick={handleOpenUrl}></lightning-button>
+            </template>
+        </div>
+    </article>
+</template>
