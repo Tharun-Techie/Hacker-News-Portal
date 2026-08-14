@@ -9,53 +9,9 @@ export default class NewStoriesTiles extends LightningElement {
     pageSize = 12;
     offset = 0;
     hasMore = true;
-    _observer;
-    _sentinel;
 
     connectedCallback() {
         this.loadStories();
-    }
-
-    renderedCallback() {
-        this.setupInfiniteScroll();
-    }
-
-    disconnectedCallback() {
-        this.disconnectObserver();
-    }
-
-    setupInfiniteScroll() {
-        const sentinel = this.template.querySelector('.auto-scroll-sentinel');
-        if (!sentinel) return;
-        if (this._sentinel === sentinel) return;
-        this.disconnectObserver();
-        this._sentinel = sentinel;
-        if (typeof IntersectionObserver === 'undefined') {
-            return;
-        }
-        this._observer = new IntersectionObserver(
-            (entries) => {
-                entries.forEach((entry) => {
-                    if (entry.isIntersecting && this.hasMore && !this.isLoading) {
-                        this.loadStories();
-                    }
-                });
-            },
-            { root: null, rootMargin: '200px', threshold: 0 }
-        );
-        this._observer.observe(sentinel);
-    }
-
-    disconnectObserver() {
-        if (this._observer) {
-            try {
-                this._observer.disconnect();
-            } catch (e) {
-                // ignore
-            }
-            this._observer = null;
-        }
-        this._sentinel = null;
     }
 
     async loadStories() {
@@ -78,11 +34,6 @@ export default class NewStoriesTiles extends LightningElement {
             this.error = e.body?.message || e.message || 'Unknown error';
         } finally {
             this.isLoading = false;
-            // eslint-disable-next-line @lwc/lwc/no-async-operation
-            setTimeout(() => this.setupInfiniteScroll(), 50);
-        }
-        if (!this.hasMore) {
-            this.disconnectObserver();
         }
     }
 
