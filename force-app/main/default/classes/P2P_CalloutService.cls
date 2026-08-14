@@ -93,26 +93,19 @@ public with sharing class P2P_CalloutService {
         return rw;
     }
 
-    public static List<String> getHNTopStoryIds(Boolean useNC) {
-        P2P_HttpRequestWrapper w = P2P_HttpRequestWrapper.forHNTopStories();
+    // OPTIMIZED: generic dispatcher reduces 3x duplication; keep typed wrappers for backward compat
+    public static List<String> getHNStoryIds(String storyType, Boolean useNC) {
+        P2P_HttpRequestWrapper w;
+        if (storyType == 'best') w = P2P_HttpRequestWrapper.forHNBestStories();
+        else if (storyType == 'new') w = P2P_HttpRequestWrapper.forHNNewStories();
+        else w = P2P_HttpRequestWrapper.forHNTopStories();
         if (useNC) w.withNamedCredential('HN_API');
         P2P_HttpResponseWrapper res = executeOrThrow(w);
         return res.getBodyAsStringList();
     }
-
-    public static List<String> getHNBestStoryIds(Boolean useNC) {
-        P2P_HttpRequestWrapper w = P2P_HttpRequestWrapper.forHNBestStories();
-        if (useNC) w.withNamedCredential('HN_API');
-        P2P_HttpResponseWrapper res = executeOrThrow(w);
-        return res.getBodyAsStringList();
-    }
-
-    public static List<String> getHNNewStoryIds(Boolean useNC) {
-        P2P_HttpRequestWrapper w = P2P_HttpRequestWrapper.forHNNewStories();
-        if (useNC) w.withNamedCredential('HN_API');
-        P2P_HttpResponseWrapper res = executeOrThrow(w);
-        return res.getBodyAsStringList();
-    }
+    public static List<String> getHNTopStoryIds(Boolean useNC) { return getHNStoryIds('top', useNC); }
+    public static List<String> getHNBestStoryIds(Boolean useNC) { return getHNStoryIds('best', useNC); }
+    public static List<String> getHNNewStoryIds(Boolean useNC) { return getHNStoryIds('new', useNC); }
 
     // Generic GET helper
     public static P2P_HttpResponseWrapper doGet(String endpoint) {
@@ -134,23 +127,16 @@ public with sharing class P2P_CalloutService {
         return rw;
     }
 
-    public static List<String> getHNBestStoryIdsFromStore() {
-        List<String> ids = IntegrationMessageService.getHNStoryIdsFromStore('getHNBestStoryIds');
-        if (ids.isEmpty()) throw new AuraHandledException('No stored Integration_Message for getHNBestStoryIds');
+    // OPTIMIZED: generic store fetch
+    public static List<String> getHNStoryIdsFromStore(String storyType) {
+        String op = storyType == 'best' ? 'getHNBestStoryIds' : (storyType == 'new' ? 'getHNNewStoryIds' : 'getHNTopStoryIds');
+        List<String> ids = IntegrationMessageService.getHNStoryIdsFromStore(op);
+        if (ids.isEmpty()) throw new AuraHandledException('No stored Integration_Message for ' + op);
         return ids;
     }
-
-    public static List<String> getHNTopStoryIdsFromStore() {
-        List<String> ids = IntegrationMessageService.getHNStoryIdsFromStore('getHNTopStoryIds');
-        if (ids.isEmpty()) throw new AuraHandledException('No stored Integration_Message for getHNTopStoryIds');
-        return ids;
-    }
-
-    public static List<String> getHNNewStoryIdsFromStore() {
-        List<String> ids = IntegrationMessageService.getHNStoryIdsFromStore('getHNNewStoryIds');
-        if (ids.isEmpty()) throw new AuraHandledException('No stored Integration_Message for getHNNewStoryIds');
-        return ids;
-    }
+    public static List<String> getHNBestStoryIdsFromStore() { return getHNStoryIdsFromStore('best'); }
+    public static List<String> getHNTopStoryIdsFromStore() { return getHNStoryIdsFromStore('top'); }
+    public static List<String> getHNNewStoryIdsFromStore() { return getHNStoryIdsFromStore('new'); }
 
     /**
      * Cached variant: tries store first, falls back to live callout and then the new response is stored.

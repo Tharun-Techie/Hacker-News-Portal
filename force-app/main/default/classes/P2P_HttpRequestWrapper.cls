@@ -72,15 +72,13 @@ public with sharing class P2P_HttpRequestWrapper {
         return w;
     }
 
-    public static P2P_HttpRequestWrapper forHNTopStories() {
+    // OPTIMIZED: generic factory reduces 3x duplication
+    public static P2P_HttpRequestWrapper forHNStories(String storyType) {
+        if (storyType == 'best') return forGet(Global_Constants.HN_API_BestStories);
+        if (storyType == 'new') return forGet(Global_Constants.HN_API_NewStories);
         return forGet(Global_Constants.HN_API_TopStories);
     }
-
-    public static P2P_HttpRequestWrapper forHNBestStories() {
-        return forGet(Global_Constants.HN_API_BestStories);
-    }
-
-    public static P2P_HttpRequestWrapper forHNNewStories() {
-        return forGet(Global_Constants.HN_API_NewStories);
-    }
+    public static P2P_HttpRequestWrapper forHNTopStories() { return forHNStories('top'); }
+    public static P2P_HttpRequestWrapper forHNBestStories() { return forHNStories('best'); }
+    public static P2P_HttpRequestWrapper forHNNewStories() { return forHNStories('new'); }
 }
