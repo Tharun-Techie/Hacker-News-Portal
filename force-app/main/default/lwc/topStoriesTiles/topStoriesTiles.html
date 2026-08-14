@@ -86,7 +86,10 @@
 
             <div class="slds-text-align_center slds-m-top_medium">
                 <template if:true={hasMore}>
-                    <lightning-button label="Load More" variant="neutral" icon-name="utility:down" onclick={handleLoadMore} disabled={isLoading}></lightning-button>
+                    <!-- Sentinel for auto infinite scroll -->
+                    <div class="auto-scroll-sentinel" style="height:1px; width:100%;"></div>
+                    <lightning-button label="Load More" variant="neutral" icon-name="utility:down" onclick={handleLoadMore} disabled={isLoading} class="slds-m-top_small"></lightning-button>
+                    <p class="slds-text-color_weak slds-text-body_small slds-m-top_x-small">Scroll down to load more automatically</p>
                 </template>
                 <template if:false={hasMore}>
                     <span class="slds-text-color_weak slds-text-body_small">No more stories.</span>
