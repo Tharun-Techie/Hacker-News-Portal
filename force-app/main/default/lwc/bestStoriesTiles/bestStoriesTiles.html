@@ -85,20 +85,20 @@
                 </div>
             </template>
 
-            <!-- Loading -->
-            <template if:true={isLoading}>
-                <div class="slds-text-align_center slds-p-vertical_medium">
-                    <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
-                    <p class="slds-m-top_small slds-text-color_weak">Loading best stories…</p>
-                </div>
-            </template>
-
-            <!-- Auto infinite scroll sentinel + fallback button -->
-            <div class="slds-text-align_center slds-m-top_medium">
+            <!-- Footer: sentinel + inline loading (only this area shows spinner) -->
+            <div class="slds-text-align_center slds-m-top_medium" style="min-height:60px;">
                 <template if:true={hasMore}>
                     <div class="auto-scroll-sentinel" style="height:1px; width:100%;"></div>
-                    <lightning-button label="Load More" variant="neutral" icon-name="utility:down" onclick={handleLoadMore} disabled={isLoading} class="slds-m-top_small"></lightning-button>
-                    <p class="slds-text-color_weak slds-text-body_small slds-m-top_x-small">Scroll down to load more automatically</p>
+                    <template if:true={isLoading}>
+                        <div class="slds-is-relative slds-p-vertical_small" style="height:40px;">
+                            <lightning-spinner alternative-text="Loading" size="small" variant="brand"></lightning-spinner>
+                            <p class="slds-m-top_small slds-text-color_weak slds-text-body_small">Loading best stories…</p>
+                        </div>
+                    </template>
+                    <template if:false={isLoading}>
+                        <lightning-button label="Load More" variant="neutral" icon-name="utility:down" onclick={handleLoadMore} class="slds-m-top_small"></lightning-button>
+                        <p class="slds-text-color_weak slds-text-body_small slds-m-top_x-small">Scroll down to load more automatically</p>
+                    </template>
                 </template>
                 <template if:false={hasMore}>
                     <span class="slds-text-color_weak slds-text-body_small">No more stories.</span>
